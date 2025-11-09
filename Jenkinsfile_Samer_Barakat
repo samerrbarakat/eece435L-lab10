@@ -41,15 +41,17 @@ pipeline {
       }
     }
 
-    stage('Security Scan') {
-      steps {
-        bat """
-          %VENV%\\Scripts\\%PY% -m bandit -r . -f json -o bandit.json
-          type bandit.json
-        """
-        archiveArtifacts artifacts: 'bandit.json', fingerprint: true
-      }
-    }
+stage('Security Scan') {
+  steps {
+    bat """
+      %VENV%\\Scripts\\%PY% -m bandit -r . ^
+        -x venv,dist,build,.git,__pycache__,%VENV%\\Lib\\site-packages ^
+        -f json -o bandit.json
+      type bandit.json
+    """
+    archiveArtifacts artifacts: 'bandit.json', fingerprint: true
+  }
+}
 
     stage('Deploy') {
       steps {
