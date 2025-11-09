@@ -29,9 +29,40 @@ pipeline {
       }
     }
 
+    stage('Coverage') {
+      steps {
+        bat """
+          %VENV%\\Scripts\\%PY% -m coverage erase
+          %VENV%\\Scripts\\%PY% -m coverage run -m pytest -q
+          %VENV%\\Scripts\\%PY% -m coverage report -m
+          %VENV%\\Scripts\\%PY% -m coverage xml -o coverage.xml
+        """
+        archiveArtifacts artifacts: 'coverage.xml', fingerprint: true
+      }
+    }
+
+    stage('Security Scan') {
+      steps {
+        bat """
+          %VENV%\\Scripts\\%PY% -m bandit -r . -f json -o bandit.json
+          type bandit.json
+        """
+        archiveArtifacts artifacts: 'bandit.json', fingerprint: true
+      }
+    }
+
     stage('Deploy') {
       steps {
-        bat "echo Deploying application..."
+        // Simple local "deploy": package artifact (zip) to simulate release
+        bat """
+          if exist dist rmdir /s /q dist
+          mkdir dist
+          copy app.py dist\\
+          %VENV%\\Scripts\\%PY% -m pip freeze > dist\\requirements.lock.txt
+          powershell -NoProfile -Command "Compress-Archive -Path dist\\* -DestinationPath artifact.zip -Force"
+        """
+        archiveArtifacts artifacts: 'artifact.zip', fingerprint: true
+        echo "Deployment artifact archived."
       }
     }
   }
