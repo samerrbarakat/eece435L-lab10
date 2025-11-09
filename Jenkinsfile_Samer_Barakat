@@ -1,50 +1,41 @@
 pipeline {
-    agent any
-
-    environment {
-        VIRTUAL_ENV = 'venv'
+  agent any
+  environment {
+    VENV = 'venv'
+    PY = 'python'          // or 'py -3' if you prefer
+    PIP = 'pip'
+  }
+  stages {
+    stage('Setup') {
+      steps {
+        bat """
+          if not exist %VENV% %PY% -m venv %VENV%
+          %VENV%\\Scripts\\%PIP% install --upgrade pip
+          %VENV%\\Scripts\\%PIP% install -r requirements.txt
+        """
+      }
     }
 
-    stages {
-        stage('Setup') {
-            steps {
-                script {
-                    if (!fileExists("${env.WORKSPACE}/${VIRTUAL_ENV}")) {
-                        sh "python -m venv ${VIRTUAL_ENV}"
-                    }
-                    sh "source ${VIRTUAL_ENV}/bin/activate && pip install -r requirements.txt"
-                }
-            }
-        }
-
-        stage('Lint') {
-            steps {
-                script {
-                    sh "source ${VIRTUAL_ENV}/bin/activate && flake8 app.py"
-                }
-            }
-        }
-
-        stage('Test') {
-            steps {
-                script {
-                    sh "source ${VIRTUAL_ENV}/bin/activate && pytest"
-                }
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                script {
-                    echo "Deploying application..."
-                }
-            }
-        }
+    stage('Lint') {
+      steps {
+        // call flake8 via python -m to avoid activate quirks
+        bat "%VENV%\\Scripts\\%PY% -m flake8 app.py"
+      }
     }
 
-    post {
-        always {
-            cleanWs()
-        }
+    stage('Test') {
+      steps {
+        bat "%VENV%\\Scripts\\%PY% -m pytest -q"
+      }
     }
+
+    stage('Deploy') {
+      steps {
+        bat "echo Deploying application..."
+      }
+    }
+  }
+  post {
+    always { cleanWs() }
+  }
 }
